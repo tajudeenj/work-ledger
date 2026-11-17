@@ -1,0 +1,292 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedcommondataserviceforapps_wl"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_excelonlinebusiness": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedexcelonlinebusiness_wl"
+        },
+        "api": {
+          "name": "shared_excelonlinebusiness"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedoffice365_wl"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedoffice365users_wl"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "Every_Friday_1500_Dubai": {
+          "type": "Recurrence",
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 1,
+            "timeZone": "Arabian Standard Time",
+            "schedule": {
+              "weekDays": [
+                "Friday"
+              ],
+              "hours": [
+                "15"
+              ],
+              "minutes": [
+                0
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Config": {
+          "runAfter": {},
+          "type": "Compose",
+          "inputs": {
+            "excelSource": "me",
+            "excelDriveId": "REPLACE_WITH_DRIVE_ID",
+            "excelFileId": "REPLACE_WITH_FILE_ID",
+            "dailyPromptId": "REPLACE_WITH_DAILY_PROMPT_ID",
+            "weeklyPromptId": "REPLACE_WITH_WEEKLY_PROMPT_ID",
+            "maxSentEmails": 150,
+            "maxChats": 25,
+            "maxMessagesPerChat": 40,
+            "maxPayloadChars": 90000,
+            "noteSubjectTag": "#ledger"
+          }
+        },
+        "Me": {
+          "runAfter": {
+            "Get_my_profile": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@body('Get_my_profile')"
+        },
+        "Local_now": {
+          "runAfter": {
+            "Config": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@convertFromUtc(utcNow(),'Arabian Standard Time')"
+        },
+        "Get_my_profile": {
+          "runAfter": {
+            "Config": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_office365users",
+              "operationId": "MyProfile_V2",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+            },
+            "parameters": {},
+            "authentication": "@parameters('$authentication')",
+            "retryPolicy": {
+              "type": "exponential",
+              "count": 4,
+              "interval": "PT15S"
+            }
+          }
+        },
+        "Week_start": {
+          "runAfter": {
+            "Local_now": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@formatDateTime(addDays(outputs('Local_now'),mul(-1,mod(add(dayOfWeek(outputs('Local_now')),6),7))),'yyyy-MM-dd')"
+        },
+        "Get_week_rows": {
+          "runAfter": {
+            "Week_start": [
+              "Succeeded"
+            ],
+            "Me": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_excelonlinebusiness",
+              "operationId": "GetItems",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness"
+            },
+            "parameters": {
+              "source": "@outputs('Config')?['excelSource']",
+              "drive": "@outputs('Config')?['excelDriveId']",
+              "file": "@outputs('Config')?['excelFileId']",
+              "table": "tblLedger",
+              "$filter": "@concat('Week eq ''',outputs('Week_start'),'''')",
+              "$top": 2000
+            },
+            "authentication": "@parameters('$authentication')",
+            "retryPolicy": {
+              "type": "exponential",
+              "count": 4,
+              "interval": "PT15S"
+            }
+          }
+        },
+        "Week_rows": {
+          "runAfter": {
+            "Get_week_rows": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@coalesce(body('Get_week_rows')?['value'],json('[]'))"
+        },
+        "Has_rows": {
+          "runAfter": {
+            "Week_rows": [
+              "Succeeded"
+            ]
+          },
+          "type": "If",
+          "expression": {
+            "and": [
+              {
+                "greater": [
+                  "@length(outputs('Week_rows'))",
+                  0
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "Report": {
+              "runAfter": {},
+              "type": "Scope",
+              "actions": {
+                "Run_weekly_report_prompt": {
+                  "runAfter": {},
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "aibuilderpredict_customprompt",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "recordId": "@outputs('Config')?['weeklyPromptId']",
+                      "item/requestv2/WeekData": "@concat('Owner: ',outputs('Me')?['displayName'],' (',outputs('Me')?['jobTitle'],'). Week starting ',outputs('Week_start'),'. Rows: ',string(outputs('Week_rows')))"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 4,
+                      "interval": "PT15S"
+                    }
+                  }
+                },
+                "Send_weekly_report": {
+                  "runAfter": {
+                    "Run_weekly_report_prompt": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                    },
+                    "parameters": {
+                      "emailMessage/To": "@outputs('Me')?['mail']",
+                      "emailMessage/Subject": "Work Ledger | Week of @{outputs('Week_start')} | @{string(length(outputs('Week_rows')))} activities",
+                      "emailMessage/Body": "@body('Run_weekly_report_prompt')?['responsev2']?['predictionOutput']?['text']",
+                      "emailMessage/Importance": "Normal"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 4,
+                      "interval": "PT15S"
+                    }
+                  }
+                }
+              }
+            },
+            "Notify_failure": {
+              "runAfter": {
+                "Report": [
+                  "Failed",
+                  "TimedOut"
+                ]
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365",
+                  "operationId": "SendEmailV2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "emailMessage/To": "@outputs('Me')?['mail']",
+                  "emailMessage/Subject": "Work Ledger: weekly digest FAILED",
+                  "emailMessage/Body": "<p>Weekly digest failed for week @{outputs('Week_start')}. Run: @{workflow()?['run']?['name']}</p>",
+                  "emailMessage/Importance": "High"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 4,
+                  "interval": "PT15S"
+                }
+              }
+            }
+          },
+          "else": {
+            "actions": {}
+          }
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

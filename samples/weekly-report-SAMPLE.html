@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Work Ledger | Week of 2026-11-16 (sample)</title></head>
+<body style="font-family:Arial,sans-serif;color:#1f1f1f;max-width:760px;margin:24px auto;line-height:1.45">
+<h2 style="color:#1F3864;margin-bottom:4px">Week of 2026-11-16: Moved the bank's AI and payments architecture forward on three fronts</h2>
+<p style="margin-top:0">The most significant contribution was securing executive sponsorship for a governed agent pilot while de-risking the ISO 20022 migration.</p>
+
+<h3 style="color:#1F3864">At a glance</h3>
+<table style="border-collapse:collapse;font-size:14px">
+<tr><td style="padding:4px 12px;border-bottom:1px solid #ddd">Total effort</td><td style="padding:4px 12px;border-bottom:1px solid #ddd"><b>9.1 h</b></td></tr>
+<tr><td style="padding:4px 12px;border-bottom:1px solid #ddd">Activities</td><td style="padding:4px 12px;border-bottom:1px solid #ddd"><b>9</b></td></tr>
+<tr><td style="padding:4px 12px;border-bottom:1px solid #ddd">Innovation items</td><td style="padding:4px 12px;border-bottom:1px solid #ddd"><b>4</b></td></tr>
+<tr><td style="padding:4px 12px;border-bottom:1px solid #ddd">Share of L4–L5 work</td><td style="padding:4px 12px;border-bottom:1px solid #ddd"><b>62.6%</b></td></tr>
+<tr><td style="padding:4px 12px">Top technologies</td><td style="padding:4px 12px"><b>Azure OpenAI, ISO 20022, LangGraph</b></td></tr>
+</table>
+
+<h3 style="color:#1F3864">What we achieved</h3>
+<ul>
+<li>Agreed a phased ISO 20022 cut-over with Payments, with ESB-layer coexistence that removes big-bang migration risk.</li>
+<li>Secured Chief AI Officer sponsorship and pilot scope for the Copilot Studio agent governance standard.</li>
+<li>Authored ADR-031, which establishes an AI gateway for quotas, PII redaction and audit across all GenAI workloads.</li>
+<li>Blocked a non-compliant point-to-point CRM design and mandated APIC-mediated, event-based integration.</li>
+<li>Built a working LangGraph prototype for SOC alert triage with retrieval over past incidents.</li>
+<li>Resolved OIC adapter timeouts in SIT and cut CBWSI alert noise, keeping delivery on schedule.</li>
+</ul>
+
+<h3 style="color:#1F3864">The impact created</h3>
+<ul>
+<li><b>Risk:</b> migration and integration risks were removed before SIT, and FIRCO false positives were reduced within risk appetite.</li>
+<li><b>Capability:</b> created a reusable control point (AI gateway) and a governed path to production for agents.</li>
+<li><b>Speed:</b> the SIT cycle was restored without slippage, and on-call staff now see only actionable alerts.</li>
+</ul>
+
+<h3 style="color:#1F3864">Innovation &amp; strategy</h3>
+<ul>
+<li>Agent governance pilot (executive sponsorship secured)</li>
+<li>AI gateway ADR</li>
+<li>SOC triage agent prototype</li>
+<li>Work-ledger concept for EA capacity visibility</li>
+</ul>
+
+<h3 style="color:#1F3864">Technology footprint</h3>
+<table style="border-collapse:collapse;font-size:14px">
+<tr style="background:#1F3864;color:#fff"><th style="padding:4px 12px;text-align:left">Technology</th><th style="padding:4px 12px">Hours</th></tr>
+<tr><td style="padding:4px 12px">Azure OpenAI</td><td style="padding:4px 12px;text-align:right">3.2</td></tr>
+<tr><td style="padding:4px 12px">LangGraph / Python</td><td style="padding:4px 12px;text-align:right">2.0</td></tr>
+<tr><td style="padding:4px 12px">ISO 20022 / SWIFT / IBM ACE</td><td style="padding:4px 12px;text-align:right">1.5</td></tr>
+<tr><td style="padding:4px 12px">Copilot Studio / Entra ID</td><td style="padding:4px 12px;text-align:right">1.0</td></tr>
+<tr><td style="padding:4px 12px">FIRCO / AML</td><td style="padding:4px 12px;text-align:right">1.0</td></tr>
+<tr><td style="padding:4px 12px">Java</td><td style="padding:4px 12px;text-align:right">0.8</td></tr>
+<tr><td style="padding:4px 12px">Oracle OIC</td><td style="padding:4px 12px;text-align:right">0.6</td></tr>
+</table>
+
+<h3 style="color:#1F3864">Effort profile</h3>
+<table style="border-collapse:collapse;font-size:14px">
+<tr style="background:#1F3864;color:#fff"><th style="padding:4px 12px;text-align:left">Level</th><th style="padding:4px 12px">Hours</th></tr>
+<tr><td style="padding:4px 12px">L5 Strategic</td><td style="padding:4px 12px;text-align:right">1.5</td></tr>
+<tr><td style="padding:4px 12px">L4 Enterprise Architecture</td><td style="padding:4px 12px;text-align:right">4.2</td></tr>
+<tr><td style="padding:4px 12px">L3 Solution Design</td><td style="padding:4px 12px;text-align:right">2.6</td></tr>
+<tr><td style="padding:4px 12px">L2 Delivery</td><td style="padding:4px 12px;text-align:right">0.8</td></tr>
+<tr><td style="padding:4px 12px">L1 Operational</td><td style="padding:4px 12px;text-align:right">0.0</td></tr>
+</table>
+<p>The week skewed strategic: nearly two-thirds of the hours were at the enterprise or executive level.</p>
+
+<h3 style="color:#1F3864">Recommendation / next step</h3>
+<ul>
+<li>Convert the agent pilot scope into a one-page charter with success metrics before the next Chief AI Officer touchpoint.</li>
+<li>Take ADR-031 to the DRB for formal approval so new GenAI projects inherit the gateway.</li>
+<li>Package the SOC triage prototype as a 5-minute showcase for the CIO.</li>
+</ul>
+
+<h3 style="color:#1F3864">Resume-ready lines</h3>
+<ul>
+<li>Led ISO 20022 migration architecture, defining a phased cut-over strategy across payments and ESB layers.</li>
+<li>Secured executive sponsorship for an enterprise AI-agent governance pilot covering identity, DLP and human-in-the-loop controls.</li>
+<li>Designed an AI gateway pattern that standardizes quota, PII redaction and audit controls for all GenAI workloads.</li>
+</ul>
+<p style="color:#7f7f7f;font-size:12px">Sample output with illustrative data.</p>
+</body></html>

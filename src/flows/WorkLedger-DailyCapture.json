@@ -1,0 +1,851 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedcommondataserviceforapps_wl"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_excelonlinebusiness": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedexcelonlinebusiness_wl"
+        },
+        "api": {
+          "name": "shared_excelonlinebusiness"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedoffice365_wl"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedoffice365users_wl"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
+      },
+      "shared_teams": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "tj_sharedteams_wl"
+        },
+        "api": {
+          "name": "shared_teams"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "Every_night_2330_Dubai": {
+          "type": "Recurrence",
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "timeZone": "Arabian Standard Time",
+            "schedule": {
+              "hours": [
+                "23"
+              ],
+              "minutes": [
+                30
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Config": {
+          "runAfter": {},
+          "type": "Compose",
+          "inputs": {
+            "excelSource": "me",
+            "excelDriveId": "REPLACE_WITH_DRIVE_ID",
+            "excelFileId": "REPLACE_WITH_FILE_ID",
+            "dailyPromptId": "REPLACE_WITH_DAILY_PROMPT_ID",
+            "weeklyPromptId": "REPLACE_WITH_WEEKLY_PROMPT_ID",
+            "maxSentEmails": 150,
+            "maxChats": 25,
+            "maxMessagesPerChat": 40,
+            "maxPayloadChars": 90000,
+            "noteSubjectTag": "#ledger"
+          }
+        },
+        "Me": {
+          "runAfter": {
+            "Get_my_profile": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@body('Get_my_profile')"
+        },
+        "Local_now": {
+          "runAfter": {
+            "Config": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@convertFromUtc(utcNow(),'Arabian Standard Time')"
+        },
+        "Get_my_profile": {
+          "runAfter": {
+            "Config": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_office365users",
+              "operationId": "MyProfile_V2",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+            },
+            "parameters": {},
+            "authentication": "@parameters('$authentication')",
+            "retryPolicy": {
+              "type": "exponential",
+              "count": 4,
+              "interval": "PT15S"
+            }
+          }
+        },
+        "Today": {
+          "runAfter": {
+            "Local_now": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@formatDateTime(outputs('Local_now'),'yyyy-MM-dd')"
+        },
+        "Day_start_utc": {
+          "runAfter": {
+            "Today": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@convertToUtc(startOfDay(outputs('Local_now')),'Arabian Standard Time')"
+        },
+        "Week_start": {
+          "runAfter": {
+            "Day_start_utc": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@formatDateTime(addDays(outputs('Local_now'),mul(-1,mod(add(dayOfWeek(outputs('Local_now')),6),7))),'yyyy-MM-dd')"
+        },
+        "Init_vars": {
+          "runAfter": {
+            "Week_start": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "SentItems",
+                "type": "array",
+                "value": []
+              },
+              {
+                "name": "Meetings",
+                "type": "array",
+                "value": []
+              },
+              {
+                "name": "TeamsItems",
+                "type": "array",
+                "value": []
+              },
+              {
+                "name": "Notes",
+                "type": "array",
+                "value": []
+              }
+            ]
+          }
+        },
+        "Check_already_logged": {
+          "runAfter": {
+            "Init_vars": [
+              "Succeeded"
+            ],
+            "Me": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_excelonlinebusiness",
+              "operationId": "GetItems",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness"
+            },
+            "parameters": {
+              "source": "@outputs('Config')?['excelSource']",
+              "drive": "@outputs('Config')?['excelDriveId']",
+              "file": "@outputs('Config')?['excelFileId']",
+              "table": "tblLedger",
+              "$filter": "@concat('Date eq ''',outputs('Today'),'''')",
+              "$top": 1
+            },
+            "authentication": "@parameters('$authentication')",
+            "retryPolicy": {
+              "type": "exponential",
+              "count": 4,
+              "interval": "PT15S"
+            }
+          }
+        },
+        "Collect_sent_email": {
+          "runAfter": {
+            "Check_already_logged": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope",
+          "actions": {
+            "Get_sent_items": {
+              "runAfter": {},
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365",
+                  "operationId": "GetEmailsV3",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "folderPath": "SentItems",
+                  "importance": "Any",
+                  "fetchOnlyWithAttachment": false,
+                  "includeAttachments": false,
+                  "top": "@outputs('Config')?['maxSentEmails']"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 4,
+                  "interval": "PT15S"
+                }
+              }
+            },
+            "Sent_today": {
+              "runAfter": {
+                "Get_sent_items": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@coalesce(body('Get_sent_items')?['value'],json('[]'))",
+                "where": "@greaterOrEquals(ticks(item()?['receivedDateTime']),ticks(outputs('Day_start_utc')))"
+              }
+            },
+            "Sent_shaped": {
+              "runAfter": {
+                "Sent_today": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@body('Sent_today')",
+                "select": {
+                  "time": "@formatDateTime(convertFromUtc(item()?['receivedDateTime'],'Arabian Standard Time'),'HH:mm')",
+                  "subject": "@item()?['subject']",
+                  "to": "@item()?['toRecipients']",
+                  "cc": "@item()?['ccRecipients']",
+                  "hasAttachments": "@item()?['hasAttachments']",
+                  "preview": "@item()?['bodyPreview']"
+                }
+              }
+            },
+            "Sent_clean": {
+              "runAfter": {
+                "Sent_shaped": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@body('Sent_shaped')",
+                "where": "@not(or(startsWith(coalesce(item()?['subject'],''),'Accepted:'),startsWith(coalesce(item()?['subject'],''),'Declined:'),startsWith(coalesce(item()?['subject'],''),'Tentative:'),startsWith(coalesce(item()?['subject'],''),'Automatic reply')))"
+              }
+            },
+            "Set_sent": {
+              "runAfter": {
+                "Sent_clean": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "SentItems",
+                "value": "@body('Sent_clean')"
+              }
+            }
+          }
+        },
+        "Collect_meetings": {
+          "runAfter": {
+            "Check_already_logged": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope",
+          "actions": {
+            "Get_today_events": {
+              "runAfter": {},
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365",
+                  "operationId": "GetEventsCalendarViewV3",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "calendarId": "Calendar",
+                  "startDateTimeOffset": "@outputs('Day_start_utc')",
+                  "endDateTimeOffset": "@addDays(outputs('Day_start_utc'),1)"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 4,
+                  "interval": "PT15S"
+                }
+              }
+            },
+            "Attended_events": {
+              "runAfter": {
+                "Get_today_events": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@coalesce(body('Get_today_events')?['value'],json('[]'))",
+                "where": "@and(not(equals(item()?['isAllDay'],true)),not(equals(toLower(coalesce(item()?['responseType'],'')),'declined')),not(equals(item()?['showAs'],'free')))"
+              }
+            },
+            "Meetings_shaped": {
+              "runAfter": {
+                "Attended_events": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@body('Attended_events')",
+                "select": {
+                  "start": "@formatDateTime(convertFromUtc(item()?['start'],'Arabian Standard Time'),'HH:mm')",
+                  "minutes": "@div(sub(ticks(item()?['end']),ticks(item()?['start'])),600000000)",
+                  "subject": "@item()?['subject']",
+                  "organizer": "@item()?['organizer']",
+                  "attendees": "@item()?['requiredAttendees']",
+                  "agenda": "@if(greater(length(coalesce(item()?['bodyPreview'],'')),400),substring(item()?['bodyPreview'],0,400),coalesce(item()?['bodyPreview'],''))"
+                }
+              }
+            },
+            "Set_meetings": {
+              "runAfter": {
+                "Meetings_shaped": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "Meetings",
+                "value": "@body('Meetings_shaped')"
+              }
+            }
+          }
+        },
+        "Collect_teams": {
+          "runAfter": {
+            "Check_already_logged": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope",
+          "actions": {
+            "List_recent_chats": {
+              "runAfter": {},
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_teams",
+                  "operationId": "HttpRequest",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                },
+                "parameters": {
+                  "Uri": "@concat('https://graph.microsoft.com/v1.0/me/chats?$expand=lastMessagePreview&$top=',string(outputs('Config')?['maxChats']))",
+                  "Method": "GET",
+                  "ContentType": "application/json"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 4,
+                  "interval": "PT15S"
+                }
+              }
+            },
+            "Chats_active_today": {
+              "runAfter": {
+                "List_recent_chats": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@coalesce(body('List_recent_chats')?['value'],json('[]'))",
+                "where": "@greaterOrEquals(ticks(coalesce(item()?['lastMessagePreview']?['createdDateTime'],'1900-01-01T00:00:00Z')),ticks(outputs('Day_start_utc')))"
+              }
+            },
+            "For_each_active_chat": {
+              "runAfter": {
+                "Chats_active_today": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach",
+              "foreach": "@body('Chats_active_today')",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 5
+                }
+              },
+              "actions": {
+                "Get_chat_messages": {
+                  "runAfter": {},
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_teams",
+                      "operationId": "HttpRequest",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                    },
+                    "parameters": {
+                      "Uri": "@concat('https://graph.microsoft.com/v1.0/chats/',items('For_each_active_chat')?['id'],'/messages?$top=',string(outputs('Config')?['maxMessagesPerChat']))",
+                      "Method": "GET",
+                      "ContentType": "application/json"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 4,
+                      "interval": "PT15S"
+                    }
+                  }
+                },
+                "Messages_today": {
+                  "runAfter": {
+                    "Get_chat_messages": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@coalesce(body('Get_chat_messages')?['value'],json('[]'))",
+                    "where": "@and(equals(item()?['messageType'],'message'),greaterOrEquals(ticks(item()?['createdDateTime']),ticks(outputs('Day_start_utc'))))"
+                  }
+                },
+                "Messages_shaped": {
+                  "runAfter": {
+                    "Messages_today": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Messages_today')",
+                    "select": {
+                      "fromMe": "@equals(item()?['from']?['user']?['id'],outputs('Me')?['id'])",
+                      "time": "@formatDateTime(convertFromUtc(item()?['createdDateTime'],'Arabian Standard Time'),'HH:mm')",
+                      "text": "@if(greater(length(coalesce(item()?['body']?['content'],'')),500),substring(item()?['body']?['content'],0,500),coalesce(item()?['body']?['content'],''))"
+                    }
+                  }
+                },
+                "Add_chat_if_I_participated": {
+                  "runAfter": {
+                    "Messages_shaped": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If",
+                  "expression": {
+                    "and": [
+                      {
+                        "contains": [
+                          "@string(body('Messages_shaped'))",
+                          "\"fromMe\":true"
+                        ]
+                      }
+                    ]
+                  },
+                  "actions": {
+                    "Append_chat": {
+                      "runAfter": {},
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "TeamsItems",
+                        "value": {
+                          "chat": "@coalesce(items('For_each_active_chat')?['topic'],items('For_each_active_chat')?['chatType'])",
+                          "messages": "@body('Messages_shaped')"
+                        }
+                      }
+                    }
+                  },
+                  "else": {
+                    "actions": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Collect_notes": {
+          "runAfter": {
+            "Check_already_logged": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope",
+          "actions": {
+            "Get_ledger_notes": {
+              "runAfter": {},
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365",
+                  "operationId": "GetEmailsV3",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "folderPath": "Inbox",
+                  "subjectFilter": "@outputs('Config')?['noteSubjectTag']",
+                  "importance": "Any",
+                  "fetchOnlyWithAttachment": false,
+                  "includeAttachments": false,
+                  "top": 25
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 4,
+                  "interval": "PT15S"
+                }
+              }
+            },
+            "Notes_today": {
+              "runAfter": {
+                "Get_ledger_notes": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@coalesce(body('Get_ledger_notes')?['value'],json('[]'))",
+                "where": "@greaterOrEquals(ticks(item()?['receivedDateTime']),ticks(outputs('Day_start_utc')))"
+              }
+            },
+            "Notes_shaped": {
+              "runAfter": {
+                "Notes_today": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@body('Notes_today')",
+                "select": {
+                  "subject": "@item()?['subject']",
+                  "note": "@if(greater(length(coalesce(item()?['body'],'')),3000),substring(item()?['body'],0,3000),coalesce(item()?['body'],''))"
+                }
+              }
+            },
+            "Set_notes": {
+              "runAfter": {
+                "Notes_shaped": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "Notes",
+                "value": "@body('Notes_shaped')"
+              }
+            }
+          }
+        },
+        "Activity_payload": {
+          "runAfter": {
+            "Collect_sent_email": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ],
+            "Collect_meetings": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ],
+            "Collect_teams": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ],
+            "Collect_notes": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "type": "Compose",
+          "inputs": {
+            "date": "@outputs('Today')",
+            "owner": "@outputs('Me')?['displayName']",
+            "ownerTitle": "@outputs('Me')?['jobTitle']",
+            "sentEmails": "@variables('SentItems')",
+            "meetings": "@variables('Meetings')",
+            "teamsChats": "@variables('TeamsItems')",
+            "personalNotes": "@variables('Notes')",
+            "sourceHealth": {
+              "email": "@result('Collect_sent_email')?[0]?['status']",
+              "meetings": "@result('Collect_meetings')?[0]?['status']",
+              "teams": "@result('Collect_teams')?[0]?['status']",
+              "notes": "@result('Collect_notes')?[0]?['status']"
+            }
+          }
+        },
+        "Payload_text": {
+          "runAfter": {
+            "Activity_payload": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@if(greater(length(coalesce(string(outputs('Activity_payload')),'')),outputs('Config')?['maxPayloadChars']),substring(string(outputs('Activity_payload')),0,outputs('Config')?['maxPayloadChars']),coalesce(string(outputs('Activity_payload')),''))"
+        },
+        "Has_activity": {
+          "runAfter": {
+            "Payload_text": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@greater(add(add(length(variables('SentItems')),length(variables('Meetings'))),add(length(variables('TeamsItems')),length(variables('Notes')))),0)"
+        },
+        "Process_day": {
+          "runAfter": {
+            "Has_activity": [
+              "Succeeded"
+            ]
+          },
+          "type": "If",
+          "expression": {
+            "and": [
+              {
+                "equals": [
+                  "@length(coalesce(body('Check_already_logged')?['value'],json('[]')))",
+                  0
+                ]
+              },
+              {
+                "equals": [
+                  "@outputs('Has_activity')",
+                  true
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "Process": {
+              "runAfter": {},
+              "type": "Scope",
+              "actions": {
+                "Run_daily_extractor_prompt": {
+                  "runAfter": {},
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "aibuilderpredict_customprompt",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "recordId": "@outputs('Config')?['dailyPromptId']",
+                      "item/requestv2/ActivityData": "@outputs('Payload_text')"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 4,
+                      "interval": "PT15S"
+                    }
+                  }
+                },
+                "Ledger_rows": {
+                  "runAfter": {
+                    "Run_daily_extractor_prompt": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose",
+                  "inputs": "@json(trim(replace(replace(body('Run_daily_extractor_prompt')?['responsev2']?['predictionOutput']?['text'],'```json',''),'```','')))"
+                },
+                "Write_rows": {
+                  "runAfter": {
+                    "Ledger_rows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach",
+                  "foreach": "@coalesce(outputs('Ledger_rows')?['rows'],json('[]'))",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 1
+                    }
+                  },
+                  "actions": {
+                    "Add_ledger_row": {
+                      "runAfter": {},
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_excelonlinebusiness",
+                          "operationId": "AddRowV2",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness"
+                        },
+                        "parameters": {
+                          "source": "@outputs('Config')?['excelSource']",
+                          "drive": "@outputs('Config')?['excelDriveId']",
+                          "file": "@outputs('Config')?['excelFileId']",
+                          "table": "tblLedger",
+                          "item": {
+                            "Date": "@outputs('Today')",
+                            "Week": "@outputs('Week_start')",
+                            "Source": "@items('Write_rows')?['source']",
+                            "Time": "@items('Write_rows')?['time']",
+                            "Title": "@items('Write_rows')?['title']",
+                            "Summary": "@items('Write_rows')?['summary']",
+                            "Category": "@items('Write_rows')?['category']",
+                            "Technologies": "@join(coalesce(items('Write_rows')?['technologies'],json('[]')),', ')",
+                            "Stakeholders": "@join(coalesce(items('Write_rows')?['stakeholders'],json('[]')),', ')",
+                            "EffortHours": "@items('Write_rows')?['effortHours']",
+                            "Complexity": "@items('Write_rows')?['complexity']",
+                            "Level": "@items('Write_rows')?['level']",
+                            "Impact": "@items('Write_rows')?['impact']",
+                            "Innovation": "@if(equals(items('Write_rows')?['isInnovation'],true),'Yes','No')",
+                            "Evidence": "@items('Write_rows')?['evidence']"
+                          }
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 4,
+                          "interval": "PT15S"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "Notify_failure": {
+              "runAfter": {
+                "Process": [
+                  "Failed",
+                  "TimedOut"
+                ]
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365",
+                  "operationId": "SendEmailV2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "emailMessage/To": "@outputs('Me')?['mail']",
+                  "emailMessage/Subject": "Work Ledger: daily capture FAILED @{outputs('Today')}",
+                  "emailMessage/Body": "<p>Daily capture failed. Source status: @{string(outputs('Activity_payload')?['sourceHealth'])}</p><p>Run: @{workflow()?['run']?['name']}</p>",
+                  "emailMessage/Importance": "High"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 4,
+                  "interval": "PT15S"
+                }
+              }
+            },
+            "Fail_run": {
+              "runAfter": {
+                "Notify_failure": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "LedgerCaptureFailed",
+                  "message": "See notification email"
+                }
+              }
+            }
+          },
+          "else": {
+            "actions": {
+              "Nothing_to_log": {
+                "runAfter": {},
+                "type": "Terminate",
+                "inputs": {
+                  "runStatus": "Succeeded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
