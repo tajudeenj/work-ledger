@@ -20,3 +20,9 @@
 - [ ] Confirm the tenant allows Graph `/me/chats` through the Teams connector
 - [ ] v1.1: add OneDrive/SharePoint documents I authored as a fifth source
 - [ ] v1.2: a monthly "career evidence" digest and a quarterly appraisal pack (Word)
+
+## 2026-11-17: prompt test inputs
+
+- Added `samples/test-input-daily.json` and `samples/test-input-weekly.json` as ready-to-paste sample values for the AI prompt Test step.
+- INSTALL.md now covers model selection: GPT-4.1 mini retires on 2026-12-02, so use GPT-6 Luna or the newest model available.
+- The daily prompt is created and pasted in the tenant (1 input, JSON output). Next: test with the sample input, create the weekly prompt, then import the solution.

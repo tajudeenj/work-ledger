@@ -12,8 +12,8 @@ Setup takes about 30 minutes, once. After that, everything runs on its own.
 ## Steps
 
 1. **Workbook:** Upload `template/WorkLedger.xlsx` to your OneDrive, e.g. `OneDrive/Documents/WorkLedger/WorkLedger.xlsx`.
-2. **Daily prompt:** Go to https://make.powerautomate.com → AI hub → Prompts → **Build your own prompt**. Follow `prompts/daily-extractor.md`: set the name `Work Ledger - Daily Extractor`, add a Text input `ActivityData`, set Output to **JSON**, then Save.
-3. **Weekly prompt:** In the same place, follow `prompts/weekly-report.md`: set the name `Work Ledger - Weekly Report`, add a Text input `WeekData`, set Output to **Text**, then Save.
+2. **Daily prompt:** Go to https://make.powerautomate.com → AI hub → Prompts → **Build your own prompt**. Follow `prompts/daily-extractor.md`: set the name `Work Ledger - Daily Extractor`, choose the newest model offered (e.g., GPT-6 Luna, since GPT-4.1 mini retires on 2026-12-02), add a Text input `ActivityData`, set Output to **JSON**. Click **1 input** and paste the contents of `samples/test-input-daily.json` as the sample value, run **Test**, check that rows are returned, then Save.
+3. **Weekly prompt:** In the same place, follow `prompts/weekly-report.md`: set the name `Work Ledger - Weekly Report`, add a Text input `WeekData`, set Output to **Text**. For the test sample value, paste: `Owner: Tajudeen Jalaudin. Week starting 2026-11-16. Rows: ` followed by the contents of `samples/test-input-weekly.json`. Run **Test**, then Save.
 4. **Import:** Go to Solutions → **Import solution** → Browse → `solution/WorkLedger_1_0_0_0.zip` → Next. Create or select a connection for each of the five connection references → Import.
 5. **Daily Capture flow:** Open Solutions → Work Ledger → **Work Ledger - Daily Capture** → Edit.
    1. Open **Check_already_logged**. Set Location to OneDrive for Business, Document Library to OneDrive, File to `/Documents/WorkLedger/WorkLedger.xlsx` and Table to `tblLedger`.
